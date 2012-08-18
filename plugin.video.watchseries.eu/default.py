@@ -53,9 +53,7 @@ print 'Show: ' + str(show)
 main_url = 'http://watchseries.eu'
 episode_url = main_url + 'episodes.php?e=%s&c=%s'
 addon_path = xaddon.getAddonInfo('path')
-icon_path = addon_path + "/icons/"
-GENRES = ['action', 'adventure', 'comedy', 'drama', 'family', 'fantasy', 'documentaries', 
-          'cooking', 'lifestyle', 'cartoons', 'reality-TV']
+#icon_path = addon_path + "/icons/"
 
 ######################################################################
 
@@ -91,11 +89,19 @@ def get_latest(url):
             addon.add_directory({'mode': 'hosting_sites', 'url': link, 'section': 'tv'}, {'title': title}, total_items=total)
         else:
             addon.add_directory({'mode': 'tvepisodes', 'url': link, 'section': 'tv'}, {'title': title}, total_items=total)
+    addon.end_of_directory()
 
 def BrowseByGenreMenu(url): 
+    html = net.http_GET(main_url + '/genres/action').content
+    
+    genres = re.findall('<a href="http://watchseries.eu/genres/.+?">(.+?)</a>', html, re.DOTALL)
     print 'Browse by genres screen'
-    for g in GENRES:
-        addon.add_directory({'mode': 'genresList', 'url': url+g, 'section': 'tv'}, {'title': g})
+    genres.sort()
+    for g in genres:
+        if g[0].islower():
+            title = g.capitalize()
+            addon.add_directory({'mode': 'genresList', 'url': url+g, 'section': 'tv'}, {'title': title})
+    addon.end_of_directory()
 
 def setupSeries(seriesid):
     if not seriesid: return 'none'
@@ -180,18 +186,19 @@ def get_video_list(url):
     match = re.compile('\t <li><a href="(.+?)" title="(.+?)">.+?<span class="epnum">(.+?)</span></a></li>',re.DOTALL).findall(html)
     #print match
     total = len(match)
-    for link, title, amount in match:
-        addon.add_directory({'mode': 'tvseasons', 'url': link, 'section': 'tv', 'show': title}, {'title': title + ' (' + amount + ')'}, img='', total_items=total)
+    for link, title, year in match:
+        addon.add_directory({'mode': 'tvseasons', 'url': link, 'section': 'tv', 'show': title}, {'title': title + ' (' + year + ')'}, img='', total_items=total)
+    addon.end_of_directory()
 
 def get_genres_list(url):
     print 'get_genres_list'
     html = net.http_GET(url).content
- 
-    match = re.compile('\t\t\t <li><a href="(.+?)\n" title="Watch .+? Online">(.+?)</a></li>',re.DOTALL).findall(html)
-    #print match
+    
+    match = re.compile('\t\t\t <li><a href="(.+?)\n" title="Watch .+? Online">(.+?)<span class="epnum">(.+?)</span></a></li>',re.DOTALL).findall(html)
     total = len(match)
-    for link, title in match:
-        addon.add_directory({'mode': 'tvseasons', 'url': link, 'section': 'tv'}, {'title': title}, img='', total_items=total)
+    for link, title, year in match:
+        addon.add_directory({'mode': 'tvseasons', 'url': link, 'section': 'tv', 'show': title}, {'title': title + ' (' + year + ')'}, img='', total_items=total)
+    addon.end_of_directory()
         
 def get_schedule_date(url):
     print 'get_schedule_list'
@@ -202,6 +209,7 @@ def get_schedule_date(url):
     total = len(match)
     for link, title in match:
         addon.add_directory({'mode': 'schedule_list', 'url': main_url+'/tvschedule/'+link, 'section': 'tv'}, {'title': title}, img='', total_items=total)
+    addon.end_of_directory()
 
 def get_schedule_list(url):
     print 'get_schedule_list'
@@ -217,6 +225,7 @@ def get_schedule_list(url):
             addon.add_directory({'mode': 'schedule_none', 'url': main_url+'/tvschedule/'+match, 'section': 'tv'}, {'title': title}, img='', total_items=total)
         else:
             addon.add_directory({'mode': 'tvseasons', 'url': match, 'section': 'tv', 'show': title}, {'title': title}, img='', total_items=total)
+    addon.end_of_directory()
 
 def DoSearch(searchTerm):
     print 'Searching'
@@ -263,6 +272,7 @@ def DoSearch(searchTerm):
         parts = re.match('(.+?)#####(.+?)$', item)
         if parts:
             addon.add_directory({'mode': 'tvseasons', 'url': parts.group(1), 'section': 'tv', 'show': parts.group(2)}, {'title': parts.group(2)}, img='', total_items=numMatches)
+    addon.end_of_directory()
 
 
      
@@ -273,11 +283,10 @@ if mode == 'main':
     addon.add_directory({'mode': 'latest', 'url': main_url + '/latest', 'section': 'tv'}, {'title': 'Newest Episodes Added'})
     addon.add_directory({'mode': 'popular', 'url': main_url + '/new', 'section': 'tv'}, {'title': 'This Weeks Popular Episodes'})
     addon.add_directory({'mode': 'schedule', 'url': main_url + '/tvschedule', 'section': 'tv'}, {'title': 'TV Schedule'})
-
-    # broken...
-    #addon.add_directory({'mode': 'genres', 'url': main_url +'/genres/', 'section': 'tv'}, {'title': 'TV Shows Genres'})
+    addon.add_directory({'mode': 'genres', 'url': main_url +'/genres/', 'section': 'tv'}, {'title': 'TV Shows Genres'})
     addon.add_directory({'mode': 'search', 'section': 'tv'}, {'title':'Search'})
-
+    addon.end_of_directory()
+    
 elif mode == 'tvaz':
     AZ_Menu('tvseriesaz','/letters/%s')
 elif mode == 'tvseriesaz':
@@ -341,8 +350,7 @@ elif mode == 'tvseasons':
         else:
             addon.add_directory(crap, {'title': season + ' ' + episodes}, img='', fanart='', total_items=len(match))
         num += 1
-    
-   
+    addon.end_of_directory()
 
 elif mode == 'tvepisodes':
     print 'tvepisodes'
@@ -395,6 +403,7 @@ elif mode == 'tvepisodes':
             addon.add_directory({'mode': 'hosting_sites', 'url': main_url + url, 'section': 'tvshows', 'imdb_id': imdb_id, 'episode': num + 1, 'fanart': fa, 'episodeart': filename} ,{'title':episode+' '+episodename+' ('+firstaired+')', 'plot': overview}, img=filename, fanart=fa, total_items=len(match))
         else:
             addon.add_directory({'mode': 'hosting_sites', 'url': main_url + url, 'section': 'tvshows', 'imdb_id': imdb_id, 'episode': num + 1}, {'title':episode+' '+episodename+' ('+firstaired+')'}, img='', total_items=len(match))
+    addon.end_of_directory()
 
 elif mode == 'hosting_sites':
     try:
@@ -478,7 +487,8 @@ elif mode == 'play':
         print stream_url
         ok=xbmc.Player(xbmc.PLAYER_CORE_DVDPLAYER).play(stream_url)
         addon.add_directory({'mode': 'play', 'url': url, 'section': 'tv'}, {'title': 'Play Again'})
-
+        addon.end_of_directory()
+        
 elif mode == 'resolver_settings':
     urlresolver.display_settings()
 
